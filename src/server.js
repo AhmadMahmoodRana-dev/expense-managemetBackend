@@ -5,7 +5,7 @@ import ConnectDb from "./config/ConnectDb.js";
 import mainWrapper from "./routes/mainWrapper.routes.js";
 
 const app = express();
-const PORT = 4000;
+const PORT = process.env.PORT || 4000;
 
 app.use(express.json());
 app.use(cors());
