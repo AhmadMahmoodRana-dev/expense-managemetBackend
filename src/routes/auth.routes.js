@@ -1,6 +1,6 @@
 import express from "express"
-import {changePassword, deleteUserAccount, forgotPassword, getSettings, getUserProfile, getUserStats, Login, Register, resendVerificationEmail, resetPassword, updateSettings, updateUserProfile, verifyEmail} from "../controllers/user.controller.js";
-import { protect } from "../middlewares/auth.middleware.js";
+import {changePassword, deleteUserAccount, forgotPassword, getUserProfile, getUserStats, Login, Register, resendVerificationEmail, resetPassword, updateUserProfile, verifyEmail} from "../controllers/user.controller.js";
+import { protect, requireVerified } from "../middlewares/auth.middleware.js";
 
 const auth = express.Router();
 
@@ -20,13 +20,10 @@ auth.post("/reset-password/:token", resetPassword);
 // ===============================
 
 // Profile Management
-auth.get("/profile", protect, getUserProfile);
+auth.get("/profile", protect, requireVerified, getUserProfile);
 auth.put("/profile", protect, updateUserProfile);
 auth.delete("/profile", protect, deleteUserAccount);
 
-// Settings Management
-auth.get("/settings", protect, getSettings);
-auth.put("/settings", protect, updateSettings);
 
 // Password Management
 auth.put("/change-password", protect, changePassword);
@@ -34,4 +31,4 @@ auth.put("/change-password", protect, changePassword);
 // User Statistics
 auth.get("/stats", protect, getUserStats);
 
-export default auth;
+export default auth;        

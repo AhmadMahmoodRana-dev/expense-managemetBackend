@@ -110,8 +110,6 @@ export const Login = async (req, res) => {
 //  EMAIL VERIFICATION
 // ===============================
 
-// @desc Verify user email
-// @route GET /api/users/verify-email/:token
 export const verifyEmail = async (req, res) => {
   try {
     const { token } = req.params;
@@ -137,8 +135,7 @@ export const verifyEmail = async (req, res) => {
   }
 };
 
-// @desc Resend verification email
-// @route POST /api/users/resend-verification
+
 export const resendVerificationEmail = async (req, res) => {
   try {
     const { email } = req.body;
@@ -173,11 +170,8 @@ export const resendVerificationEmail = async (req, res) => {
 };
 
 // ===============================
-//  PROFILE & SETTINGS
+//  PROFILE 
 // ===============================
-
-// @desc Get user profile
-// @route GET /api/users/profile
 export const getUserProfile = async (req, res) => {
   try {
     const user = await User.findById(req.user.id).select("-password");
@@ -190,11 +184,9 @@ export const getUserProfile = async (req, res) => {
   }
 };
 
-// @desc Update user profile
-// @route PUT /api/users/profile
 export const updateUserProfile = async (req, res) => {
   try {
-    const { firstName, lastName, phone, dateOfBirth, profilePhoto, currency, language, timezone } = req.body;
+    const { firstName, lastName, phone, dateOfBirth, currency, language, timezone } = req.body;
 
     const user = await User.findById(req.user.id);
     if (!user) return res.status(404).json({ message: "User not found" });
@@ -203,7 +195,6 @@ export const updateUserProfile = async (req, res) => {
     user.lastName = lastName || user.lastName;
     user.phone = phone || user.phone;
     user.dateOfBirth = dateOfBirth || user.dateOfBirth;
-    user.profilePhoto = profilePhoto || user.profilePhoto;
     user.currency = currency || user.currency;
     user.language = language || user.language;
     user.timezone = timezone || user.timezone;
@@ -220,8 +211,6 @@ export const updateUserProfile = async (req, res) => {
   }
 };
 
-// @desc Delete user account
-// @route DELETE /api/users/profile
 export const deleteUserAccount = async (req, res) => {
   try {
     const { password } = req.body;
@@ -247,68 +236,11 @@ export const deleteUserAccount = async (req, res) => {
   }
 };
 
-// ===============================
-//  SETTINGS UPDATE
-// ===============================
-
-// @desc Update user settings
-// @route PUT /api/users/settings
-export const updateSettings = async (req, res) => {
-  try {
-    const user = await User.findById(req.user.id);
-    if (!user) return res.status(404).json({ message: "User not found" });
-
-    // Deep merge settings
-    if (req.body.theme) user.settings.theme = req.body.theme;
-    if (req.body.dateFormat) user.settings.dateFormat = req.body.dateFormat;
-    if (req.body.numberFormat) user.settings.numberFormat = req.body.numberFormat;
-    if (req.body.startOfWeek) user.settings.startOfWeek = req.body.startOfWeek;
-
-    // Update notifications
-    if (req.body.notifications) {
-      user.settings.notifications = {
-        ...user.settings.notifications,
-        ...req.body.notifications,
-      };
-    }
-
-    // Update security settings
-    if (req.body.security) {
-      user.settings.security = {
-        ...user.settings.security,
-        ...req.body.security,
-      };
-    }
-
-    await user.save();
-
-    res.json({ message: "Settings updated successfully", settings: user.settings });
-  } catch (error) {
-    console.error("Settings Update Error:", error);
-    res.status(500).json({ message: "Server error while updating settings" });
-  }
-};
-
-// @desc Get user settings
-// @route GET /api/users/settings
-export const getSettings = async (req, res) => {
-  try {
-    const user = await User.findById(req.user.id).select("settings");
-    if (!user) return res.status(404).json({ message: "User not found" });
-
-    res.json({ settings: user.settings });
-  } catch (error) {
-    console.error("Get Settings Error:", error);
-    res.status(500).json({ message: "Server error while fetching settings" });
-  }
-};
 
 // ===============================
 //  PASSWORD MANAGEMENT
 // ===============================
 
-// @desc Change Password (when logged in)
-// @route PUT /api/users/change-password
 export const changePassword = async (req, res) => {
   try {
     const { currentPassword, newPassword } = req.body;
