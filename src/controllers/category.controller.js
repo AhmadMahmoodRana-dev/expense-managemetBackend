@@ -5,8 +5,6 @@ export const createCategory = async (req, res) => {
   try {
     const { name, type, icon, color, parentCategory, description, order } = req.body;
     const userId = req.user.id;
-
-    // If parentCategory is provided, validate it exists and belongs to the same user
     if (parentCategory) {
       const parent = await Category.findOne({ 
         _id: parentCategory, 
@@ -71,7 +69,7 @@ export const getCategories = async (req, res) => {
     }
     
     if (!includeInactive) {
-      filter.isActive = true;
+      filter.isActive = false;
     }
 
     const categories = await Category.find(filter)
@@ -127,139 +125,7 @@ export const getCategoriesByType = async (req, res) => {
   }
 };
 
-// Get a single category by ID
-export const getCategoryById = async (req, res) => {
-  try {
-    const userId = req.user.id;
-    const { id } = req.params;
 
-    if (!mongoose.Types.ObjectId.isValid(id)) {
-      return res.status(400).json({ 
-        success: false, 
-        message: 'Invalid category ID' 
-      });
-    }
-
-    const category = await Category.findOne({ _id: id, userId })
-      .populate('parentCategory', 'name icon color');
-
-    if (!category) {
-      return res.status(404).json({ 
-        success: false, 
-        message: 'Category not found' 
-      });
-    }
-
-    // Get subcategories
-    const subcategories = await Category.find({ 
-      parentCategory: id, 
-      userId,
-      isActive: true 
-    }).sort({ order: 1 });
-
-    res.status(200).json({ 
-      success: true, 
-      data: {
-        ...category.toObject(),
-        subcategories
-      }
-    });
-  } catch (error) {
-    res.status(500).json({ 
-      success: false, 
-      message: 'Error fetching category', 
-      error: error.message 
-    });
-  }
-};
-
-// Get subcategories of a parent category
-export const getSubcategories = async (req, res) => {
-  try {
-    const userId = req.user.id;
-    const { parentId } = req.params;
-
-    if (!mongoose.Types.ObjectId.isValid(parentId)) {
-      return res.status(400).json({ 
-        success: false, 
-        message: 'Invalid parent category ID' 
-      });
-    }
-
-    // Verify parent category exists and belongs to user
-    const parentCategory = await Category.findOne({ _id: parentId, userId });
-    if (!parentCategory) {
-      return res.status(404).json({ 
-        success: false, 
-        message: 'Parent category not found' 
-      });
-    }
-
-    const subcategories = await Category.find({ 
-      parentCategory: parentId, 
-      userId,
-      isActive: true 
-    }).sort({ order: 1, createdAt: 1 });
-
-    res.status(200).json({ 
-      success: true, 
-      count: subcategories.length,
-      data: subcategories 
-    });
-  } catch (error) {
-    res.status(500).json({ 
-      success: false, 
-      message: 'Error fetching subcategories', 
-      error: error.message 
-    });
-  }
-};
-
-// Get categories in tree structure
-export const getCategoryTree = async (req, res) => {
-  try {
-    const userId = req.user.id;
-    const { type } = req.query;
-
-    const filter = { userId, isActive: true };
-    if (type && ['income', 'expense'].includes(type)) {
-      filter.type = type;
-    }
-
-    const categories = await Category.find(filter)
-      .populate('parentCategory', 'name icon color')
-      .sort({ order: 1, createdAt: 1 });
-
-    // Build category tree
-    const buildTree = (parentId = null) => {
-      return categories
-        .filter(category => {
-          if (parentId === null) {
-            return !category.parentCategory;
-          }
-          return category.parentCategory && category.parentCategory._id.toString() === parentId;
-        })
-        .map(category => ({
-          ...category.toObject(),
-          subcategories: buildTree(category._id.toString())
-        }));
-    };
-
-    const categoryTree = buildTree();
-
-    res.status(200).json({ 
-      success: true, 
-      count: categories.length,
-      data: categoryTree 
-    });
-  } catch (error) {
-    res.status(500).json({ 
-      success: false, 
-      message: 'Error fetching category tree', 
-      error: error.message 
-    });
-  }
-};
 
 // Update a category
 export const updateCategory = async (req, res) => {
@@ -428,8 +294,46 @@ export const deleteCategory = async (req, res) => {
   }
 };
 
-// Soft delete (deactivate) a category
-export const deactivateCategory = async (req, res) => {
+// Soft delete (activate) a category
+export const activateCategory = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { id } = req.params;
+
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Invalid category ID' 
+      });
+    }
+
+    const category = await Category.findOne({ _id: id, userId });
+
+    if (!category) {
+      return res.status(404).json({ 
+        success: false, 
+        message: 'Category not found' 
+      });
+    }
+
+    category.isActive = true;
+    await category.save();
+
+    res.status(200).json({ 
+      success: true, 
+      message: 'Category deactivated successfully', 
+      data: category 
+    });
+  } catch (error) {
+    res.status(500).json({ 
+      success: false, 
+      message: 'Error deactivating category', 
+      error: error.message 
+    });
+  }
+};
+// Soft delete (activate) a category
+export const inactivateCategory = async (req, res) => {
   try {
     const userId = req.user.id;
     const { id } = req.params;
