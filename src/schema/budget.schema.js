@@ -14,7 +14,7 @@ const budgetSchema = new Schema({
     default: 'Monthly Budget'
   },
   month: {
-    type: Number,
+    type: Date,
     required: true,
     min: 1,
     max: 12
@@ -59,7 +59,7 @@ const budgetSchema = new Schema({
   },
   alertThreshold: {
     type: Number,
-    default: 80, // Alert when 80% of budget is used
+    default: 80, 
     min: 0,
     max: 100
   },
