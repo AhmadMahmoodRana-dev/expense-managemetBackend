@@ -14,7 +14,7 @@ const budgetSchema = new Schema({
     default: 'Monthly Budget'
   },
   month: {
-    type: Date,
+    type: Number,
     required: true,
     min: 1,
     max: 12

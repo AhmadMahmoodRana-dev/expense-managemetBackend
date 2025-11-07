@@ -73,6 +73,67 @@ export const createBudget = async (req, res) => {
   }
 };
 
+// @desc    Get budgets for a specific month and year
+// @route   GET /api/budgets/by-month
+// @access  Private
+export const getBudgetsByMonth = async (req, res) => {
+  try {
+    const userId = req.user._id;
+    const { month, year } = req.query;
+
+    if (!month || !year) {
+      return res.status(400).json({
+        success: false,
+        message: 'Month and year are required',
+      });
+    }
+
+    // Convert to integers (since your schema likely stores month/year as numbers)
+    const numericMonth = parseInt(month);
+    const numericYear = parseInt(year);
+
+    // Fetch budgets
+    const budgets = await Budget.find({
+      userId,
+      month: numericMonth,
+      year: numericYear
+    }).populate('categories.category', 'name icon color');
+
+    if (!budgets || budgets.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: `No budgets found for ${getMonthName(numericMonth)} ${numericYear}`
+      });
+    }
+
+    // Calculate total budget and spent for that month
+    const totalBudget = budgets.reduce((sum, b) => sum + b.totalBudget, 0);
+    const totalSpent = budgets.reduce((sum, b) => sum + b.totalSpent, 0);
+
+    res.status(200).json({
+      success: true,
+      data: {
+        budgets,
+        summary: {
+          month: getMonthName(numericMonth),
+          year: numericYear,
+          totalBudget,
+          totalSpent,
+          remaining: totalBudget - totalSpent
+        }
+      },
+      message: 'Budgets fetched successfully'
+    });
+
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+};
+
+
 // @desc    Get all budgets for a user
 // @route   GET /api/budgets
 // @access  Private
