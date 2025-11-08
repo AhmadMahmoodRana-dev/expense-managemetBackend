@@ -1,5 +1,5 @@
 import jwt from "jsonwebtoken";
-import User from "../schema/User.schema.js";
+import User from "../schema/user.schema.js";
 
 /**
  * Protect routes - verify JWT token
