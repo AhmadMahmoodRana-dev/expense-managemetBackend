@@ -216,128 +216,6 @@ export const getBudget = async (req, res) => {
   }
 };
 
-// @desc    Update budget
-// @route   PUT /api/budgets/:id
-// @access  Private
-export const updateBudget = async (req, res) => {
-  try {
-    const {
-      name,
-      categories,
-      totalBudget,
-      rolloverUnused,
-      alertThreshold
-    } = req.body;
-
-    let budget = await Budget.findById(req.params.id);
-
-    if (!budget) {
-      return res.status(404).json({
-        success: false,
-        message: 'Budget not found'
-      });
-    }
-
-    // Check if user owns this budget
-    if (budget.userId.toString() !== req.user._id.toString()) {
-      return res.status(403).json({
-        success: false,
-        message: 'Not authorized to update this budget'
-      });
-    }
-
-    // Calculate total spent from categories
-    const totalSpent = categories.reduce((sum, category) => sum + (category.spentAmount || 0), 0);
-
-    // Determine status based on spending
-    let status = 'active';
-    if (totalSpent >= totalBudget) {
-      status = 'exceeded';
-    } else if (budget.month < new Date().getMonth() + 1 && budget.year <= new Date().getFullYear()) {
-      status = 'completed';
-    }
-
-    budget = await Budget.findByIdAndUpdate(
-      req.params.id,
-      {
-        name,
-        categories: categories.map(cat => ({
-          category: cat.category,
-          budgetAmount: cat.budgetAmount,
-          spentAmount: cat.spentAmount || 0,
-          isActive: cat.isActive !== undefined ? cat.isActive : true
-        })),
-        totalBudget,
-        totalSpent,
-        rolloverUnused,
-        alertThreshold,
-        status
-      },
-      { new: true, runValidators: true }
-    ).populate('categories.category', 'name icon color');
-
-    res.json({
-      success: true,
-      data: budget,
-      message: 'Budget updated successfully'
-    });
-
-  } catch (error) {
-    if (error.kind === 'ObjectId') {
-      return res.status(404).json({
-        success: false,
-        message: 'Budget not found'
-      });
-    }
-    res.status(400).json({
-      success: false,
-      message: error.message
-    });
-  }
-};
-
-// @desc    Delete budget
-// @route   DELETE /api/budgets/:id
-// @access  Private
-export const deleteBudget = async (req, res) => {
-  try {
-    const budget = await Budget.findById(req.params.id);
-
-    if (!budget) {
-      return res.status(404).json({
-        success: false,
-        message: 'Budget not found'
-      });
-    }
-
-    // Check if user owns this budget
-    if (budget.userId.toString() !== req.user._id.toString()) {
-      return res.status(403).json({
-        success: false,
-        message: 'Not authorized to delete this budget'
-      });
-    }
-
-    await Budget.findByIdAndDelete(req.params.id);
-
-    res.json({
-      success: true,
-      message: 'Budget deleted successfully'
-    });
-
-  } catch (error) {
-    if (error.kind === 'ObjectId') {
-      return res.status(404).json({
-        success: false,
-        message: 'Budget not found'
-      });
-    }
-    res.status(500).json({
-      success: false,
-      message: error.message
-    });
-  }
-};
 
 // @desc    Update spent amount for a category
 // @route   PATCH /api/budgets/:id/categories/:categoryId/spent
@@ -404,39 +282,6 @@ export const updateCategorySpent = async (req, res) => {
       });
     }
     res.status(400).json({
-      success: false,
-      message: error.message
-    });
-  }
-};
-
-// @desc    Get current month budget
-// @route   GET /api/budgets/current
-// @access  Private
-export const getCurrentBudget = async (req, res) => {
-  try {
-    const userId = req.user._id;
-    const currentDate = new Date();
-    const month = currentDate.getMonth() + 1;
-    const year = currentDate.getFullYear();
-
-    const budget = await Budget.findOne({ userId, month, year })
-      .populate('categories.category', 'name icon color');
-
-    if (!budget) {
-      return res.status(404).json({
-        success: false,
-        message: 'No budget found for current month'
-      });
-    }
-
-    res.json({
-      success: true,
-      data: budget
-    });
-
-  } catch (error) {
-    res.status(500).json({
       success: false,
       message: error.message
     });
@@ -517,6 +362,73 @@ export const getBudgetAlerts = async (req, res) => {
   }
 };
 
+
+
+// @desc    Delete a specific category from a budget
+// @route   DELETE /api/budgets/:id/categories/:categoryId
+// @access  Private
+export const deleteBudgetCategory = async (req, res) => {
+  try {
+    const { id, categoryId } = req.params;
+
+    const budget = await Budget.findById(id);
+
+    if (!budget) {
+      return res.status(404).json({
+        success: false,
+        message: 'Budget not found'
+      });
+    }
+
+    // Check if user owns this budget
+    if (budget.userId.toString() !== req.user._id.toString()) {
+      return res.status(403).json({
+        success: false,
+        message: 'Not authorized to modify this budget'
+      });
+    }
+
+    // Find the category index
+    const categoryIndex = budget.categories.findIndex(
+      (cat) => cat._id.toString() === categoryId
+    );
+
+    if (categoryIndex === -1) {
+      return res.status(404).json({
+        success: false,
+        message: 'Category not found in this budget'
+      });
+    }
+
+    // Remove category
+    budget.categories.splice(categoryIndex, 1);
+
+    // Recalculate total budget and total spent
+    budget.totalBudget = budget.categories.reduce((sum, cat) => sum + (cat.budgetAmount || 0), 0);
+    budget.totalSpent = budget.categories.reduce((sum, cat) => sum + (cat.spentAmount || 0), 0);
+
+    // Update status
+    budget.status = budget.totalSpent >= budget.totalBudget ? 'exceeded' : 'active';
+
+    await budget.save();
+    await budget.populate('categories.category', 'name icon color');
+
+    res.json({
+      success: true,
+      data: budget,
+      message: 'Category deleted successfully from budget'
+    });
+
+  } catch (error) {
+    console.error('Error deleting category:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+};
+
+
 // Helper function to create future budgets
 const createFutureBudgets = async (userId, startMonth, startYear, templateBudget, savedBudget) => {
   try {
@@ -573,9 +485,6 @@ export default {
   createBudget,
   getBudgets,
   getBudget,
-  updateBudget,
-  deleteBudget,
   updateCategorySpent,
-  getCurrentBudget,
   getBudgetAlerts
 };
