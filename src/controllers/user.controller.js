@@ -1,5 +1,5 @@
 import generateToken from "../helper/generateToken.js";
-import User from "../schema/User.schema.js";
+import User from "../schema/user.schema.js";
 import bcrypt from "bcryptjs";
 import crypto from "crypto";
 import { sendVerificationEmail, sendPasswordResetEmail } from "../services/emailService.js";
